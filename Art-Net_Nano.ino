@@ -1,3 +1,12 @@
+//
+//    FILE: Art-Net_Nano.ino
+//  AUTHOR: jco <jco0jco0jco@gmail.com>
+// VERSION: 0.1.00
+//    DATE: 2018/09/18
+// LICENSE: see LICENSE
+//
+// Receives and processes Art-Net packets
+//
 #include <EtherCard.h>
 #include <Adafruit_NeoPixel.h>
 
