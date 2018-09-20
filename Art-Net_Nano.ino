@@ -12,8 +12,9 @@
 
 //NeoPixel Config
 #define PIN            6 // sets the Arduino Nano pin for NeoPixel data
-#define NUMPIXELS      5 // sets the amount of NeoPixel in a string
-Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
+#define NUMPIXELS      10 // sets the amount of NeoPixel in a string
+Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRBW + NEO_KHZ800);
+uint8_t ledsPerPixel = 4; // sets the number of available LEDs in a single NeoPixel (GRB = 3, RGBW = 4,...)
 
 //EtherCard Config
 #define STATIC 1 // set for static IP configuration
@@ -29,7 +30,7 @@ uint8_t net[4];
 uint16_t oem = 0x00FF;
 uint8_t NetSwitch = 0x00; // set the Net part of the port address (0x00-0x7F)
 uint8_t SubSwitch = 0x00; // sets the Sub-Net part of the port address (0x00-0x0F)
-uint16_t dmxChannel = mymac[5] * 3 * NUMPIXELS; // sets the first DMX channel this node uses (0-511), max (170 / NUMPIXELS) nodes
+uint16_t dmxChannel = mymac[5] * ledsPerPixel * NUMPIXELS; // sets the first DMX channel this node uses (0-511), max (255 / (NUMPIXELS * ledsPerPixel)) nodes
 
 //Misc Config
 #define DEBUG 0 // set for debug information via serial monitor, Baud rate 115200
@@ -45,16 +46,31 @@ void setup (){
 #endif
   
   pixels.begin(); // initialises NeoPixels
-  for(uint8_t i = 0;i < NUMPIXELS;i++){ // flashes NeoPixel blue on boot
-    pixels.setPixelColor(i, 0, 0, 255); //
-    pixels.show();                      //
-  }                                     //
-  delay(500);                           //
-  for(uint8_t i = 0;i < NUMPIXELS;i++){ //
-    pixels.setPixelColor(i, 0, 0, 0);   //
-    pixels.show();                      //
-  }                                     //
-  
+  for(uint8_t i = 0;i < NUMPIXELS;i++){    // flashes every LED in sequence for all NeoPixel in the string on boot
+    pixels.setPixelColor(i, 255, 0, 0);    //
+    pixels.show();                         //
+  }                                        //
+  delay(200);                              //
+  for(uint8_t i = 0;i < NUMPIXELS;i++){    //
+    pixels.setPixelColor(i, 0, 255, 0, 0); //
+    pixels.show();                         //
+  }                                        //
+  delay(200);                              //
+  for(uint8_t i = 0;i < NUMPIXELS;i++){    //
+    pixels.setPixelColor(i, 0, 0, 255, 0); //
+    pixels.show();                         //
+  }                                        //
+  delay(200);                              //
+  for(uint8_t i = 0;i < NUMPIXELS;i++){    //
+    pixels.setPixelColor(i, 0, 0, 0, 255); //
+    pixels.show();                         //
+  }                                        //
+  delay(200);                              //
+  for(uint8_t i = 0;i < NUMPIXELS;i++){    // 
+    pixels.setPixelColor(i, 0, 0, 0, 0);   //
+    pixels.show();                         //
+  }                                        //
+
   if(!ether.begin(sizeof Ethernet::buffer, mymac)){ // initialises ethernet controller
 #if DEBUG
     Serial.println(F("Failed to access Ethernet controller!"));
@@ -289,28 +305,35 @@ void processArtNetPacket(uint16_t dest_port, uint8_t src_ip[IP_LEN], uint16_t sr
 }
 
 void updateNeoPixel(uint16_t dmxStartChannel, const char *data, uint16_t len){
-  uint8_t dmxData[3 * NUMPIXELS];                  // initialises array that holds DMX values (0-255) for 3 channels (RGB)
-  uint16_t index;                                  // and sets it according to the received data (beginning at index 18)
-  for(uint8_t i = 0;i < 3 * NUMPIXELS;i++){        //
-    index = 18 + dmxStartChannel + i;              //
-    if(len >= index){                              //
-      dmxData[i] = data[index];                    //
-      continue;                                    //
-    }                                              //
-    dmxData[i] = 0;                                //
-  }                                                // 
+  uint8_t dmxData[ledsPerPixel * NUMPIXELS];           // initialises array that holds DMX values (0-255) for 3 channels (RGB)
+  uint16_t index;                                      // and sets it according to the received data (beginning at index 18)
+  for(uint8_t i = 0;i < ledsPerPixel * NUMPIXELS;i++){ //
+    index = 18 + dmxStartChannel + i;                  //
+    if(len >= index){                                  //
+      dmxData[i] = data[index];                        //
+      continue;                                        //
+    }                                                  //
+    dmxData[i] = 0;                                    //
+  }                                                    // 
 #if DEBUG
   Serial.println(F("\nData for first NeoPixel: "));
   Serial.print(dmxData[0],HEX);
   Serial.print(F(" "));
   Serial.print(dmxData[1],HEX);
   Serial.print(F(" "));
-  Serial.println(dmxData[2],HEX);
+  Serial.print(dmxData[2],HEX);
+  if(ledsPerPixel == 4){
+    Serial.print(dmxData[3],HEX);
+  }
+  Serial.println();
 #endif
-  for(uint8_t i = 0;i < NUMPIXELS;i++){                                                   // sets the color according to the received data for each and displays it
-    pixels.setPixelColor(i, dmxData[3 * i + 0], dmxData[3 * i + 1], dmxData[3 * i + 2]);  //
-    pixels.show();                                                                        //
-  }                                                                                       //
+  for(uint8_t i = 0;i < NUMPIXELS;i++){                     // sets the color according to the received data for each and displays it
+    pixels.setPixelColor(i, dmxData[ledsPerPixel * i + 0],  //
+                            dmxData[ledsPerPixel * i + 1],  //
+                            dmxData[ledsPerPixel * i + 2],  //
+                            dmxData[ledsPerPixel * i + 3]); //
+    pixels.show();                                          //
+  }                                                         //
 }
 
 void sendArtPollReply(){
